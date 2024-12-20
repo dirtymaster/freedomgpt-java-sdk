@@ -1,0 +1,86 @@
+openapi: 3.0.0
+info:
+  title: FreedomGPT API
+  version: 1.0.0
+servers:
+  - url: https://chat.freedomgpt.com
+tags:
+  - name: freedom-gpt
+    description: FreedomGPT API
+
+paths:
+  /api/v1/chat/completions:
+    post:
+      tags:
+        - freedom-gpt
+      summary: Get chat completions
+      operationId: getChatCompletions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+
+components:
+  schemas:
+    ChatCompletionRequest:
+      type: object
+      properties:
+        model:
+          $ref: '#/components/schemas/Model'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        stream:
+          type: boolean
+        max_tokens:
+          type: integer
+        temperature:
+          type: number
+        top_k:
+          type: integer
+        top_p:
+          type: number
+
+    ChatCompletionResponse:
+      type: object
+      properties:
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Choice'
+
+    Choice:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+        content:
+          type: string
+
+    Model:
+      type: string
+      enum:
+        - claude-3.5-sonnet
+        - gpt-4o
+        - grok-2-1212
+        - liberty3
+        - llama-3.1-405b-instruct
