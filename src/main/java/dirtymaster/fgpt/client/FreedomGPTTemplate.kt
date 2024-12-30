@@ -1,93 +1,73 @@
-package dirtymaster.fgpt.client;
+package dirtymaster.fgpt.client
 
-import dirtymaster.fgpt.ApiClient;
-import dirtymaster.fgpt.ApiException;
-import dirtymaster.fgpt.api.FreedomGptApi;
-import dirtymaster.fgpt.config.CompletionConfiguration;
-import dirtymaster.fgpt.model.ChatCompletionRequest;
-import dirtymaster.fgpt.model.ChatCompletionResponse;
-import dirtymaster.fgpt.model.Message;
-import dirtymaster.fgpt.model.Model;
-import dirtymaster.fgpt.service.MessagesService;
-import lombok.Getter;
-import lombok.Setter;
+import dirtymaster.fgpt.api.FreedomGptApi
+import dirtymaster.fgpt.config.CompletionConfiguration
+import dirtymaster.fgpt.model.ChatCompletionRequest
+import dirtymaster.fgpt.model.ChatCompletionResponse
+import dirtymaster.fgpt.model.Message
+import dirtymaster.fgpt.model.Model
+import dirtymaster.fgpt.service.MessagesService
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
-import java.util.List;
+class FreedomGPTTemplate(var model: Model, apiKey: String) {
+    var rememberMessages = false
+    var completionConfiguration = CompletionConfiguration()
 
-public class FreedomGPTTemplate {
-    @Setter
-    private Model model;
-    @Setter
-    private boolean rememberMessages = false;
-    @Setter
-    @Getter
-    private CompletionConfiguration completionConfiguration;
+    private val messagesService = MessagesService()
+    private val freedomGptApi: FreedomGptApi
 
-    private final MessagesService messagesService;
-    private final ApiClient apiClient;
-    private final FreedomGptApi freedomGptApi;
+    init {
+        val httpClient = OkHttpClient.Builder()
+            .readTimeout(60, TimeUnit.SECONDS) // Устанавливаем readTimeout
+            .connectTimeout(60, TimeUnit.SECONDS) // Устанавливаем connectTimeout
+            .addInterceptor { chain ->
+                val originalRequest = chain.request()
+                val requestWithAuthorization = originalRequest.newBuilder()
+                    .addHeader("Authorization", "Bearer $apiKey") // Добавляем заголовок Authorization
+                    .build()
+                chain.proceed(requestWithAuthorization)
+            }
+            .build()
 
-    public FreedomGPTTemplate(Model model, String apiKey) {
-        this.model = model;
-        this.completionConfiguration = new CompletionConfiguration();
-        this.messagesService = new MessagesService();
+        this.freedomGptApi = FreedomGptApi(client = httpClient, basePath = "https://chat.freedomgpt.com")
 
-        this.apiClient = new ApiClient();
-        apiClient.setBasePath("https://chat.freedomgpt.com");
-        apiClient.addDefaultHeader("Authorization", "BEARER " + apiKey);
-        apiClient.setConnectTimeout(60 * 1000);
-        apiClient.setReadTimeout(60 * 1000);
-        this.freedomGptApi = new FreedomGptApi(apiClient);
     }
 
-    public void setUrl(String url) {
-        this.apiClient.setBasePath(url);
-        this.freedomGptApi.setApiClient(this.apiClient);
-    }
+    fun getCompletion(newMessageContent: String?): String {
+        val newMessage = Message(content = newMessageContent, role = Message.Role.user)
+        val request = ChatCompletionRequest(
+            model = model,
+            messages = if (rememberMessages) messagesService.messages else listOf(newMessage),
+            stream = false,
+            maxTokens = completionConfiguration.maxTokens,
+            temperature = completionConfiguration.temperature,
+            topK = completionConfiguration.topK,
+            topP = completionConfiguration.topP
+        )
 
-    public void setApiKey(String apiKey) {
-        this.apiClient.addDefaultHeader("Authorization", "BEARER " + apiKey);
-    }
-
-    public void setConnectTimeout(int connectTimeout) {
-        this.apiClient.setConnectTimeout(connectTimeout);
-        this.freedomGptApi.setApiClient(this.apiClient);
-    }
-
-    public void setReadTimeout(int readTimeout) {
-        this.apiClient.setReadTimeout(readTimeout);
-        this.freedomGptApi.setApiClient(this.apiClient);
-    }
-
-    public String getCompletion(String newMessageContent) {
-        ChatCompletionRequest request = new ChatCompletionRequest()
-                .model(model)
-                .messages(messagesService.getMessages())
-                .stream(false)
-                .maxTokens(this.completionConfiguration.getMaxTokens())
-                .temperature(this.completionConfiguration.getTemperature())
-                .topK(this.completionConfiguration.getTopK())
-                .topP(this.completionConfiguration.getTopP());
-
-        Message newMessage = new Message().content(newMessageContent).role(Message.RoleEnum.USER);
         if (rememberMessages) {
-            messagesService.addMessage(newMessage);
-            request.setMessages(messagesService.getMessages());
+            messagesService.addMessage(newMessage)
         } else {
-            messagesService.clearMessages();
-            request.setMessages(List.of(newMessage));
+            messagesService.clearMessages()
         }
 
-        ChatCompletionResponse response;
-        try {
-            response = freedomGptApi.getChatCompletions(request);
-        } catch (ApiException ex) {
-            throw new RuntimeException(ex);
+        val response: ChatCompletionResponse = freedomGptApi.getChatCompletions(request)
+        val responseMessage: Message? = response.choices?.first()?.message
+        if (responseMessage?.content == null) {
+            throw RuntimeException("Response message content is null")
         }
-        Message responseMessage = response.getChoices().getFirst().getMessage();
         if (rememberMessages) {
-            messagesService.addMessage(responseMessage);
+            messagesService.addMessage(responseMessage)
         }
-        return responseMessage.getContent();
+        return responseMessage.content
+    }
+
+    fun getAllMessages(): List<Message> {
+        return messagesService.messages
+    }
+
+    fun clearMessages() {
+        messagesService.clearMessages()
     }
 }

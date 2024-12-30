@@ -1,20 +1,15 @@
-package dirtymaster.fgpt.service;
+package dirtymaster.fgpt.service
 
-import dirtymaster.fgpt.model.Message;
-import lombok.Getter;
+import dirtymaster.fgpt.model.Message
 
-import java.util.ArrayList;
-import java.util.List;
+class MessagesService {
+    val messages: MutableList<Message> = ArrayList()
 
-@Getter
-public class MessagesService {
-    private final List<Message> messages = new ArrayList<>();
-
-    public void addMessage(Message message) {
-        messages.add(message);
+    fun addMessage(message: Message) {
+        messages.add(message)
     }
 
-    public void clearMessages() {
-        messages.clear();
+    fun clearMessages() {
+        messages.clear()
     }
 }

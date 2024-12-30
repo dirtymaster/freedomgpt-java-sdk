@@ -1,11 +1,11 @@
 plugins {
-    id 'java'
     id 'org.openapi.generator' version '7.8.0'
     id 'maven-publish'
+    id 'org.jetbrains.kotlin.jvm' version '2.1.0'
 }
 
 group = 'dirtymaster'
-version = '0.1.0'
+version = '0.2.0'
 
 java {
     toolchain {
@@ -37,13 +37,13 @@ publishing {
 }
 
 dependencies {
-    compileOnly 'org.openapitools:openapi-generator:7.10.0' exclude group: 'org.slf4j', module: 'slf4j-simple'
-    implementation 'javax.annotation:javax.annotation-api:1.3.2'
-    implementation 'io.gsonfire:gson-fire:1.9.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+//    implementation 'javax.annotation:javax.annotation-api:1.3.2'
+//    implementation 'io.gsonfire:gson-fire:1.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.moshi:moshi-kotlin:1.15.2'
 
-    compileOnly 'org.projectlombok:lombok:1.18.36'
-    annotationProcessor 'org.projectlombok:lombok:1.18.36'
+//    compileOnly 'org.projectlombok:lombok:1.18.36'
+//    annotationProcessor 'org.projectlombok:lombok:1.18.36'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.11.4'
@@ -55,20 +55,29 @@ tasks.named('test') {
 
 sourceSets {
     main {
-        java {
-            srcDir "${buildDir}/generated/src/main/java"
+        kotlin {
+            srcDir "${buildDir}/generated/src/main/kotlin"
         }
     }
 }
 
 openApiGenerate {
-    generatorName = "java"
+    generatorName = "kotlin"
     inputSpec = "$projectDir/src/main/resources/openapi.yml".toString()
     outputDir = "$buildDir/generated".toString()
     apiPackage = "dirtymaster.fgpt.api"
     modelPackage = "dirtymaster.fgpt.model"
     configOptions = [
             disallowAdditionalPropertiesIfNotPresent: "false"
-    ]}
+    ]
+}
 
-compileJava.dependsOn tasks.openApiGenerate
+compileKotlin.dependsOn tasks.openApiGenerate
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
+    kotlinOptions {
+        jvmTarget = "23"
+        javaParameters = true
+        freeCompilerArgs = ["-Xjvm-default=all"]
+    }
+}
